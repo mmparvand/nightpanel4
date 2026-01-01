@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WarOps Installation Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    .glass-morphism {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    
+    .animated-gradient {
+      background: linear-gradient(45deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #667eea 100%);
+      background-size: 400% 400%;
+      animation: gradientShift 15s ease infinite;
+    }
+    
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    
+    .floating {
+      animation: floating 3s ease-in-out infinite;
+    }
+    
+    @keyframes floating {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .btn-primary {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+    }
+    
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(139, 92, 246, 0.3);
+      border-top-color: #8b5cf6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .terminal {
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+      border-radius: 16px;
+      padding: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 450px;
+      overflow-y: auto;
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+      border: 2px solid rgba(102, 126, 234, 0.3);
+    }
+    
+    .terminal-line {
+      margin-bottom: 6px;
+      line-height: 1.6;
+      opacity: 0;
+      animation: terminalFadeIn 0.2s ease forwards;
+    }
+    
+    @keyframes terminalFadeIn {
+      to { opacity: 1; }
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 14px;
+      background: rgba(139, 92, 246, 0.2);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      border-radius: 20px;
+      transition: width 0.5s ease;
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="min-h-screen overflow-auto">
+  <div class="animated-gradient fixed inset-0"></div>
+  <div id="app" class="relative z-10 min-h-screen p-6 md:p-10"></div>
+  <div id="notification" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 90%; max-width: 500px;"></div>
+  <script>
+    const API_URL = window.location.origin + '/api';
+    let currentStep = 1;
+    let serverInfo = { ip: '', username: '', password: '', sshKey: '', authMethod: 'password', connected: false, specs: null };
+    let selectedTemplates = [];
+    let templates = [];
+    let installConfig = { ssl: false, sslDomain: '', firewall: true, firewallPorts: '22,80,443', autoUpdate: true, monitoring: false };
+    let installationLog = [];
+    let installProgress = 0;
+    let isInstalling = false;
+    let installationReport = null;
+    let installId = null;
+
+    async function init() {
+      await loadTemplates();
+      render();
+    }
+
+    async function loadTemplates() {
+      try {
+        const response = await fetch(`${API_URL}/templates`);
+        templates = await response.json();
+      } catch (error) {
+        showNotification('خطا در بارگذاری Template ها', 'error');
+        templates = [];
+      }
+    }
+
+    function render() {
+      const app = document.getElementById('app');
+      app.innerHTML = `
+        <div class="max-w-7xl mx-auto">
+          ${renderHeader()}
+          ${renderStepIndicator()}
+          ${renderContent()}
+        </div>
+      `;
+      attachEventListeners();
+    }
+
+    function renderHeader() {
+      return `
+        <header class="text-center mb-12">
+          <div class="floating inline-block mb-6">
+            <div class="w-24 h-24 rounded-3xl flex items-center justify-center" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+            </div>
+          </div>
+          
+          <h1 class="text-5xl font-black mb-4 text-white" style="text-shadow: 0 2px 20px rgba(0,0,0,0.3);">
+            پنل نصب WarOps <span style="color: #8b5cf6;">V20</span>
+          </h1>
+          
+          <p class="text-xl font-medium text-white/80">نصب هوشمند و خودکار</p>
+          
+          <a href="/admin.html" class="inline-block mt-6 glass-morphism px-6 py-3 rounded-2xl font-semibold text-white hover:scale-105 transition">
+            🔐 پنل مدیریت
+          </a>
+        </header>
+      `;
+    }
+
+    function renderStepIndicator() {
+      const steps = [
+        { num: 1, label: 'اتصال سرور', icon: '🔌' },
+        { num: 2, label: 'انتخاب Template', icon: '📦' },
+        { num: 3, label: 'پیکربندی', icon: '⚙️' },
+        { num: 4, label: 'نصب', icon: '🚀' }
+      ];
+      
+      return `
+        <div class="flex items-center justify-center mb-16 px-4">
+          ${steps.map((step, index) => `
+            <div class="flex items-center ${index < steps.length - 1 ? 'flex-1' : ''}">
+              <div class="flex flex-col items-center gap-3">
+                <div class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-black transition-all" 
+                     style="background: ${currentStep >= step.num ? 'linear-gradient(135deg, #8b5cf6, #6366f1)' : 'rgba(139, 92, 246, 0.2)'}; color: ${currentStep >= step.num ? '#ffffff' : '#ffffff80'}; border: 3px solid ${currentStep >= step.num ? '#8b5cf6' : 'rgba(139, 92, 246, 0.3)'};">
+                  ${currentStep > step.num ? '✓' : step.icon}
+                </div>
+                <span class="font-bold text-white text-center whitespace-nowrap">${step.label}</span>
+              </div>
+              ${index < steps.length - 1 ? `<div class="flex-1 h-1 mx-4 rounded" style="background: ${currentStep > step.num ? 'linear-gradient(90deg, #667eea, #764ba2)' : 'rgba(139, 92, 246, 0.2)'};"></div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderContent() {
+      return `
+        <main class="glass-morphism rounded-3xl p-8 md:p-12">
+          ${renderStepContent()}
+        </main>
+      `;
+    }
+
+    function renderStepContent() {
+      switch(currentStep) {
+        case 1: return renderStep1();
+        case 2: return renderStep2();
+        case 3: return renderStep3();
+        case 4: return renderStep4();
+        default: return '';
+      }
+    }
+
+    function renderStep1() {
+      return `
+        <h2 class="text-4xl font-bold mb-8 text-white flex items-center gap-3">
+          <span>🔌</span> اتصال به سرور
+        </h2>
+        
+        <form id="serverForm" class="space-y-6">
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <label class="block font-semibold mb-3 text-white">آی‌پی سرور *</label>
+              <input type="text" id="serverIp" value="${serverInfo.ip}" required
+                     class="glass-morphism w-full px-6 py-4 rounded-2xl font-medium text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                     placeholder="192.168.1.100">
+            </div>
+            
+            <div>
+              <label class="block font-semibold mb-3 text-white">نام کاربری *</label>
+              <input type="text" id="serverUsername" value="${serverInfo.username}" required
+                     class="glass-morphism w-full px-6 py-4 rounded-2xl font-medium text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                     placeholder="root">
+            </div>
+          </div>
+          
+          <div>
+            <label class="block font-semibold mb-4 text-white">روش احراز هویت</label>
+            <div class="grid grid-cols-2 gap-4">
+              <button type="button" onclick="setAuthMethod('password')" 
+                      class="btn-primary py-4 rounded-2xl font-bold text-white"
+                      style="background: ${serverInfo.authMethod === 'password' ? 'linear-gradient(135deg, #8b5cf6, #6366f1)' : 'rgba(139, 92, 246, 0.2)'};">
+                🔑 رمز عبور
+              </button>
+              <button type="button" onclick="setAuthMethod('key')" 
+                      class="btn-primary py-4 rounded-2xl font-bold text-white"
+                      style="background: ${serverInfo.authMethod === 'key' ? 'linear-gradient(135deg, #8b5cf6, #6366f1)' : 'rgba(139, 92, 246, 0.2)'};">
+                🔐 کلید SSH
+              </button>
+            </div>
+          </div>
+          
+          ${serverInfo.authMethod === 'password' ? `
+            <div>
+              <label class="block font-semibold mb-3 text-white">رمز عبور *</label>
+              <input type="password" id="serverPassword" value="${serverInfo.password}" required
+                     class="glass-morphism w-full px-6 py-4 rounded-2xl font-medium text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                     placeholder="••••••••">
+            </div>
+          ` : `
+            <div>
+              <label class="block font-semibold mb-3 text-white">کلید SSH *</label>
+              <textarea id="serverSshKey" rows="5" required
+                        class="glass-morphism w-full px-6 py-4 rounded-2xl font-mono text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                        placeholder="-----BEGIN RSA PRIVATE KEY-----">${serverInfo.sshKey}</textarea>
+            </div>
+          `}
+          
+          ${serverInfo.connected && serverInfo.specs ? renderServerSpecs() : ''}
+          
+          <div class="flex gap-4 pt-6">
+            <button type="submit" 
+                    class="btn-primary flex-1 py-4 rounded-2xl font-bold text-white"
+                    style="background: linear-gradient(135deg, #8b5cf6, #6366f1);">
+              ${serverInfo.connected ? 'بعدی →' : '🔌 اتصال و بررسی سرور'}
+            </button>
+          </div>
+        </form>
+      `;
+    }
+
+    function renderServerSpecs() {
+      const specs = serverInfo.specs;
+      return `
+        <div class="glass-morphism p-6 rounded-2xl mt-6">
+          <h3 class="text-2xl font-bold mb-6 text-white flex items-center gap-3">
+            <span>💻</span> مشخصات سرور
+          </h3>
+          
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div class="text-center">
+              <div class="text-4xl font-black text-purple-400 mb-2">${specs.cpu}%</div>
+              <p class="font-bold text-white">CPU</p>
+              <p class="text-sm text-white/60">${specs.cpuModel}</p>
+            </div>
+            
+            <div class="text-center">
+              <div class="text-4xl font-black text-blue-400 mb-2">${specs.ramUsed}GB</div>
+              <p class="font-bold text-white">RAM</p>
+              <p class="text-sm text-white/60">${specs.ramTotal}GB Total</p>
+            </div>
+            
+            <div class="text-center">
+              <div class="text-4xl font-black text-green-400 mb-2">${specs.diskUsed}GB</div>
+              <p class="font-bold text-white">Disk</p>
+              <p class="text-sm text-white/60">${specs.diskTotal}GB Total</p>
+            </div>
+            
+            <div class="text-center">
+              <div class="text-4xl font-black text-yellow-400 mb-2">${specs.network}</div>
+              <p class="font-bold text-white">Network</p>
+              <p class="text-sm text-white/60">Mb/s</p>
+            </div>
+          </div>
+          
+          <div class="mt-6 pt-6 border-t border-white/10">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <p class="text-sm text-white/60 mb-1">سیستم عامل</p>
+                <p class="font-bold text-white">${specs.os}</p>
+              </div>
+              <div>
+                <p class="text-sm text-white/60 mb-1">Kernel</p>
+                <p class="font-bold text-white">${specs.kernel}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderStep2() {
+      return `
+        <h2 class="text-4xl font-bold mb-8 text-white flex items-center gap-3">
+          <span>📦</span> انتخاب Template
+        </h2>
+        
+        ${selectedTemplates.length > 0 ? `
+          <div class="glass-morphism p-6 rounded-2xl mb-8">
+            <h3 class="text-xl font-bold mb-4 text-white">📋 Template های انتخابی (${selectedTemplates.length})</h3>
+            <div class="space-y-3">
+              ${selectedTemplates.map((t, i) => `
+                <div class="glass-morphism p-4 rounded-xl flex items-center gap-4 text-white">
+                  <span class="text-2xl font-black text-purple-400">${i + 1}</span>
+                  <span class="text-3xl">${t.icon}</span>
+                  <span class="flex-1 font-semibold">${t.nameFa}</span>
+                  <button onclick='removeTemplate("${t.id}")' class="w-10 h-10 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30">✕</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          ${templates.map(template => {
+            const isSelected = selectedTemplates.some(t => t.id === template.id);
+            return `
+              <div class="glass-morphism p-6 rounded-2xl cursor-pointer hover:scale-105 transition ${isSelected ? 'ring-4 ring-purple-500' : ''}" 
+                   onclick='toggleTemplate(${JSON.stringify(template).replace(/'/g, "&#39;")})'>
+                <div class="flex items-start gap-4 mb-4">
+                  <div class="text-5xl">${template.icon}</div>
+                  <div class="flex-1">
+                    <h3 class="text-xl font-bold text-white mb-2">${template.nameFa}</h3>
+                    <p class="text-sm text-white/70 mb-3">${template.descriptionFa}</p>
+                  </div>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 mb-4">
+                  <span class="px-3 py-1 rounded-lg text-xs font-bold bg-purple-500/30 text-purple-200">${template.category}</span>
+                  <span class="px-3 py-1 rounded-lg text-xs font-bold bg-blue-500/30 text-blue-200">v${template.version}</span>
+                  ${template.verified ? '<span class="px-3 py-1 rounded-lg text-xs font-bold bg-green-500/30 text-green-200">✓ تایید شده</span>' : ''}
+                </div>
+                
+                <div class="text-sm text-white/60 space-y-1">
+                  <p>📦 ${template.size}</p>
+                  <p>⏱️ ${template.installTime}</p>
+                  <p>🔌 ${template.ports}</p>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        
+        <div class="flex gap-4">
+          <button onclick="goToStep(1)" class="btn-primary px-8 py-4 rounded-2xl font-bold text-white bg-white/10">← قبلی</button>
+          <button onclick="goToStep(3)" ${selectedTemplates.length === 0 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}
+                  class="btn-primary flex-1 py-4 rounded-2xl font-bold text-white" style="background: linear-gradient(135deg, #8b5cf6, #6366f1);">
+            بعدی →
+          </button>
+        </div>
+      `;
+    }
+
+    function renderStep3() {
+      return `
+        <h2 class="text-4xl font-bold mb-8 text-white flex items-center gap-3">
+          <span>⚙️</span> پیکربندی
+        </h2>
+        
+        <form id="configForm" class="space-y-6">
+          <div class="glass-morphism p-6 rounded-2xl">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <span class="text-3xl">🔐</span>
+                <div>
+                  <h4 class="text-xl font-bold text-white">SSL Certificate</h4>
+                  <p class="text-sm text-white/60">Let's Encrypt</p>
+                </div>
+              </div>
+              <input type="checkbox" id="enableSsl" ${installConfig.ssl ? 'checked' : ''} 
+                     onchange="installConfig.ssl = this.checked; render();"
+                     class="w-8 h-8 cursor-pointer" style="accent-color: #8b5cf6;">
+            </div>
+            
+            ${installConfig.ssl ? `
+              <div class="mt-4">
+                <label class="block font-semibold mb-3 text-white">دامنه *</label>
+                <input type="text" id="sslDomain" value="${installConfig.sslDomain}" 
+                       class="glass-morphism w-full px-6 py-4 rounded-2xl font-medium text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                       placeholder="example.com">
+              </div>
+            ` : ''}
+          </div>
+          
+          <div class="glass-morphism p-6 rounded-2xl">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <span class="text-3xl">🛡️</span>
+                <div>
+                  <h4 class="text-xl font-bold text-white">Firewall</h4>
+                  <p class="text-sm text-white/60">UFW Configuration</p>
+                </div>
+              </div>
+              <input type="checkbox" id="enableFirewall" ${installConfig.firewall ? 'checked' : ''} 
+                     onchange="installConfig.firewall = this.checked; render();"
+                     class="w-8 h-8 cursor-pointer" style="accent-color: #8b5cf6;">
+            </div>
+            
+            ${installConfig.firewall ? `
+              <div class="mt-4">
+                <label class="block font-semibold mb-3 text-white">پورت‌های مجاز</label>
+                <input type="text" id="firewallPorts" value="${installConfig.firewallPorts}" 
+                       class="glass-morphism w-full px-6 py-4 rounded-2xl font-medium text-white focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                       placeholder="22,80,443">
+              </div>
+            ` : ''}
+          </div>
+          
+          <div class="glass-morphism p-6 rounded-2xl">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="text-3xl">🔄</span>
+                <div>
+                  <h4 class="text-xl font-bold text-white">Auto Update</h4>
+                  <p class="text-sm text-white/60">System packages</p>
+                </div>
+              </div>
+              <input type="checkbox" id="autoUpdate" ${installConfig.autoUpdate ? 'checked' : ''} 
+                     onchange="installConfig.autoUpdate = this.checked; render();"
+                     class="w-8 h-8 cursor-pointer" style="accent-color: #8b5cf6;">
+            </div>
+          </div>
+          
+          <div class="glass-morphism p-6 rounded-2xl">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="text-3xl">📊</span>
+                <div>
+                  <h4 class="text-xl font-bold text-white">Monitoring</h4>
+                  <p class="text-sm text-white/60">Install monitoring tools</p>
+                </div>
+              </div>
+              <input type="checkbox" id="monitoring" ${installConfig.monitoring ? 'checked' : ''} 
+                     onchange="installConfig.monitoring = this.checked; render();"
+                     class="w-8 h-8 cursor-pointer" style="accent-color: #8b5cf6;">
+            </div>
+          </div>
+          
+          <div class="flex gap-4 pt-6">
+            <button type="button" onclick="goToStep(2)" class="btn-primary px-8 py-4 rounded-2xl font-bold text-white bg-white/10">← قبلی</button>
+            <button type="submit" class="btn-primary flex-1 py-4 rounded-2xl font-bold text-white" style="background: linear-gradient(135deg, #8b5cf6, #6366f1);">بعدی →</button>
+          </div>
+        </form>
+      `;
+    }
+
+    function renderStep4() {
+      return `
+        <h2 class="text-4xl font-bold mb-8 text-white flex items-center gap-3">
+          <span>🚀</span> نصب
+        </h2>
+        
+        ${!isInstalling && !installationReport ? `
+          <div class="glass-morphism p-8 rounded-2xl mb-6">
+            <h3 class="text-2xl font-bold mb-6 text-white">📋 خلاصه نصب</h3>
+            <div class="space-y-4 text-white">
+              <p>🖥️ <strong>سرور:</strong> ${serverInfo.username}@${serverInfo.ip}</p>
+              <p>📦 <strong>تعداد Template:</strong> ${selectedTemplates.length}</p>
+              <p>🔐 <strong>SSL:</strong> ${installConfig.ssl ? '✓ ' + installConfig.sslDomain : '✗'}</p>
+              <p>🛡️ <strong>Firewall:</strong> ${installConfig.firewall ? '✓' : '✗'}</p>
+            </div>
+          </div>
+          
+          <div class="flex gap-4">
+            <button onclick="goToStep(3)" class="btn-primary px-8 py-4 rounded-2xl font-bold text-white bg-white/10">← قبلی</button>
+            <button onclick="startInstallation()" class="btn-primary flex-1 py-4 rounded-2xl font-bold text-white" style="background: linear-gradient(135deg, #8b5cf6, #6366f1);">🚀 شروع نصب</button>
+          </div>
+        ` : ''}
+        
+        ${isInstalling ? `
+          <div class="glass-morphism p-8 rounded-2xl mb-6">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-2xl font-bold text-white">⏳ در حال نصب...</h3>
+              <div class="loading-spinner"></div>
+            </div>
+            
+            <div class="progress-bar mb-4">
+              <div class="progress-bar-fill" style="width: ${installProgress}%;"></div>
+            </div>
+            <p class="text-center text-2xl font-bold text-white mb-6">${installProgress}%</p>
+          </div>
+          
+          <div class="terminal">
+            ${installationLog.map(line => `
+              <div class="terminal-line" style="color: ${line.type === 'error' ? '#ef4444' : line.type === 'info' ? '#3b82f6' : '#22c55e'};">
+                [${new Date(line.timestamp).toLocaleTimeString()}] ${line.message}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        
+        ${installationReport ? `
+          <div class="glass-morphism p-8 rounded-2xl">
+            <h3 class="text-3xl font-bold mb-6 text-white">✅ نصب کامل شد!</h3>
+            <p class="text-xl text-white/80 mb-8">تمام Template ها با موفقیت نصب شدند</p>
+            
+            <button onclick="resetInstallation()" class="btn-primary w-full py-4 rounded-2xl font-bold text-white" style="background: linear-gradient(135deg, #8b5cf6, #6366f1);">
+              🔄 نصب جدید
+            </button>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    function attachEventListeners() {
+      const serverForm = document.getElementById('serverForm');
+      if (serverForm) {
+        serverForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          handleServerFormSubmit();
+        });
+      }
+      
+      const configForm = document.getElementById('configForm');
+      if (configForm) {
+        configForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          handleConfigFormSubmit();
+        });
+      }
+    }
+
+    function setAuthMethod(method) {
+      serverInfo.authMethod = method;
+      render();
+    }
+
+    async function handleServerFormSubmit() {
+      serverInfo.ip = document.getElementById('serverIp').value;
+      serverInfo.username = document.getElementById('serverUsername').value;
+      
+      if (serverInfo.authMethod === 'password') {
+        serverInfo.password = document.getElementById('serverPassword').value;
+      } else {
+        serverInfo.sshKey = document.getElementById('serverSshKey').value;
+      }
+      
+      if (!serverInfo.connected) {
+        showNotification('🔄 در حال اتصال به سرور...', 'info');
+        
+        try {
+          const response = await fetch(`${API_URL}/server/connect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ip: serverInfo.ip,
+              username: serverInfo.username,
+              authMethod: serverInfo.authMethod,
+              password: serverInfo.password,
+              sshKey: serverInfo.sshKey
+            })
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            serverInfo.connected = true;
+            serverInfo.specs = data.specs;
+            showNotification('✓ اتصال موفق!', 'success');
+            render();
+          } else {
+            showNotification('✗ خطا در اتصال: ' + data.error, 'error');
+          }
+        } catch (error) {
+          showNotification('✗ خطا در اتصال به API', 'error');
+        }
+      } else {
+        goToStep(2);
+      }
+    }
+
+    function toggleTemplate(template) {
+      const index = selectedTemplates.findIndex(t => t.id === template.id);
+      if (index > -1) {
+        selectedTemplates.splice(index, 1);
+      } else {
+        selectedTemplates.push(template);
+      }
+      render();
+    }
+
+    function removeTemplate(templateId) {
+      selectedTemplates = selectedTemplates.filter(t => t.id !== templateId);
+      render();
+    }
+
+    function handleConfigFormSubmit() {
+      if (installConfig.ssl) {
+        installConfig.sslDomain = document.getElementById('sslDomain').value;
+      }
+      if (installConfig.firewall) {
+        installConfig.firewallPorts = document.getElementById('firewallPorts').value;
+      }
+      goToStep(4);
+    }
+
+    function goToStep(step) {
+      currentStep = step;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      render();
+    }
+
+    async function startInstallation() {
+      isInstalling = true;
+      installProgress = 0;
+      installationLog = [];
+      render();
+      
+      try {
+        showNotification('🚀 شروع نصب...', 'info');
+        
+        // ارسال درخواست نصب به Backend
+        const response = await fetch(`${API_URL}/install/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            serverId: 1, // باید از سرور ذخیره شده استفاده کنید
+            templates: selectedTemplates,
+            config: installConfig
+          })
+        });
+        
+        const data = await response.json();
+        installId = data.installId;
+        
+        // نظارت بر پیشرفت
+        const interval = setInterval(async () => {
+          try {
+            const statusResponse = await fetch(`${API_URL}/install/status/${installId}`);
+            const statusData = await statusResponse.json();
+            
+            installProgress = statusData.progress;
+            installationLog = statusData.logs;
+            render();
+            
+            if (statusData.status === 'completed' || statusData.progress >= 100) {
+              clearInterval(interval);
+              isInstalling = false;
+              installationReport = { success: true };
+              showNotification('✅ نصب با موفقیت انجام شد!', 'success');
+              render();
+            }
+          } catch (error) {
+            clearInterval(interval);
+            showNotification('✗ خطا در دریافت وضعیت', 'error');
+          }
+        }, 2000);
+        
+      } catch (error) {
+        isInstalling = false;
+        showNotification('✗ خطا در شروع نصب', 'error');
+        render();
+      }
+    }
+
+    function resetInstallation() {
+      currentStep = 1;
+      serverInfo.connected = false;
+      selectedTemplates = [];
+      installationLog = [];
+      installProgress = 0;
+      isInstalling = false;
+      installationReport = null;
+      render();
+    }
+
+    function showNotification(message, type = 'success') {
+      const container = document.getElementById('notification');
+      const colors = {
+        success: 'linear-gradient(135deg, #10b981, #059669)',
+        error: 'linear-gradient(135deg, #ef4444, #dc2626)',
+        info: 'linear-gradient(135deg, #3b82f6, #2563eb)'
+      };
+      
+      container.innerHTML = `
+        <div style="background: ${colors[type]}; color: white; padding: 18px 28px; border-radius: 20px; font-weight: 700; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); animation: slideIn 0.3s ease;">
+          ${message}
+        </div>
+      `;
+      
+      setTimeout(() => container.innerHTML = '', 3500);
+    }
+
+    init();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9b744063014626ad',t:'MTc2NzI5Mzk0Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
