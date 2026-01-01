@@ -1,6 +1,4 @@
-درسته! بیاید فایل اسکریپت رو با حروف فارسی درست اصلاح کنم:
-
-بله درسته! مشکل از encoding فارسی در Bash هست. بذار یک اسکریپت جدید بسازم که فارسی‌هاش درست نمایش داده بشه:
+بله حتماً! همه چیز رو انگلیسی می‌کنم برای نمایش بهتر توی ترمینال:
 
 #!/bin/bash
 
@@ -13,10 +11,6 @@
 ###############################################################################
 
 set -e
-
-# Set UTF-8 encoding
-export LANG=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
 
 # Colors for output
 RED='\033[0;31m'
@@ -43,20 +37,22 @@ AUTO_START=true
 print_banner() {
     clear
     echo -e "${PURPLE}${BOLD}"
-    echo "=============================================================="
-    echo ""
-    echo "          W A R O P S   P A N E L   I N S T A L L E R"
-    echo ""
-    echo "                     Quick Install v1.0"
-    echo "              Server Management Panel Setup"
-    echo ""
-    echo "=============================================================="
+    cat << "EOF"
+============================================================
+                                                           
+          W A R O P S   P A N E L   S E T U P              
+                                                           
+                    Quick Installer v1.0                   
+              Server Management Panel Setup                
+                                                           
+============================================================
+EOF
     echo -e "${NC}"
     echo ""
 }
 
 print_step() {
-    echo -e "${CYAN}${BOLD}[$(date +'%H:%M:%S')]${NC} ${GREEN}=>${NC} $1"
+    echo -e "${CYAN}${BOLD}[$(date +'%H:%M:%S')]${NC} ${GREEN}>>>${NC} $1"
 }
 
 print_error() {
@@ -97,23 +93,23 @@ check_os() {
     
     case $OS in
         ubuntu)
-            if [[ $(echo "$VER >= 20.04" | bc) -eq 1 ]]; then
-                print_success "Ubuntu $VER detected"
+            if [[ $(echo "$VER >= 20.04" | bc 2>/dev/null || echo "0") -eq 1 ]]; then
+                print_success "Ubuntu $VER detected - OK"
             else
                 print_error "Ubuntu 20.04 or higher is required!"
                 exit 1
             fi
             ;;
         debian)
-            if [[ $(echo "$VER >= 11" | bc) -eq 1 ]]; then
-                print_success "Debian $VER detected"
+            if [[ $(echo "$VER >= 11" | bc 2>/dev/null || echo "0") -eq 1 ]]; then
+                print_success "Debian $VER detected - OK"
             else
                 print_error "Debian 11 or higher is required!"
                 exit 1
             fi
             ;;
         *)
-            print_error "Unsupported OS! Only Ubuntu 20.04+ and Debian 11+ are supported."
+            print_error "Unsupported OS! Only Ubuntu 20.04+ and Debian 11+ supported."
             exit 1
             ;;
     esac
@@ -125,54 +121,54 @@ check_resources() {
     # Check RAM
     TOTAL_RAM=$(free -m | awk '/^Mem:/{print $2}')
     if [[ $TOTAL_RAM -lt 1024 ]]; then
-        print_warning "At least 2GB RAM is recommended (Current: ${TOTAL_RAM}MB)"
+        print_warning "Minimum 2GB RAM recommended (Current: ${TOTAL_RAM}MB)"
     else
-        print_success "RAM is sufficient: ${TOTAL_RAM}MB"
+        print_success "RAM: ${TOTAL_RAM}MB - OK"
     fi
     
     # Check disk space
     FREE_SPACE=$(df -m / | awk 'NR==2 {print $4}')
     if [[ $FREE_SPACE -lt 5120 ]]; then
-        print_warning "At least 5GB free space is recommended (Current: ${FREE_SPACE}MB)"
+        print_warning "Minimum 5GB free space recommended (Current: ${FREE_SPACE}MB)"
     else
-        print_success "Disk space is sufficient: ${FREE_SPACE}MB"
+        print_success "Disk Space: ${FREE_SPACE}MB - OK"
     fi
 }
 
 check_port() {
     print_step "Checking port $DEFAULT_PORT availability..."
     
-    if lsof -Pi :$DEFAULT_PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
+    if command -v lsof &> /dev/null && lsof -Pi :$DEFAULT_PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
         print_error "Port $DEFAULT_PORT is already in use!"
-        read -p "Would you like to use a different port? (y/n): " change_port
+        read -p "Use a different port? (y/n): " change_port
         if [[ $change_port == "y" || $change_port == "Y" ]]; then
             read -p "Enter new port number: " DEFAULT_PORT
         else
             exit 1
         fi
     else
-        print_success "Port $DEFAULT_PORT is available"
+        print_success "Port $DEFAULT_PORT - Available"
     fi
 }
 
 install_dependencies() {
-    print_step "Installing dependencies..."
+    print_step "Installing system dependencies..."
     
     export DEBIAN_FRONTEND=noninteractive
     
     apt-get update -qq > /dev/null 2>&1
-    apt-get install -y -qq curl wget git lsof ufw sqlite3 bc > /dev/null 2>&1
+    apt-get install -y -qq curl wget git lsof ufw sqlite3 bc openssl > /dev/null 2>&1
     
-    print_success "Base dependencies installed"
+    print_success "System dependencies installed"
 }
 
 install_nodejs() {
-    print_step "Installing Node.js 18..."
+    print_step "Installing Node.js 18 LTS..."
     
     if command -v node &> /dev/null; then
         NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
         if [[ $NODE_VERSION -ge 18 ]]; then
-            print_success "Node.js $(node -v) is already installed"
+            print_success "Node.js $(node -v) already installed"
             return
         fi
     fi
@@ -189,11 +185,11 @@ create_directories() {
     
     mkdir -p $INSTALL_DIR/{backend,frontend,logs,backups}
     
-    print_success "Directories created"
+    print_success "Directories created successfully"
 }
 
 create_backend_files() {
-    print_step "Creating backend files..."
+    print_step "Creating backend application files..."
     
     # server.js
     cat > $INSTALL_DIR/backend/server.js << 'EOF'
@@ -463,7 +459,7 @@ EOF
 }
 
 install_npm_packages() {
-    print_step "Installing NPM packages..."
+    print_step "Installing NPM packages (this may take a minute)..."
     
     cd $INSTALL_DIR/backend
     npm install --silent --no-progress > /dev/null 2>&1
@@ -472,7 +468,7 @@ install_npm_packages() {
 }
 
 create_frontend_files() {
-    print_step "Creating frontend files..."
+    print_step "Creating frontend interface files..."
     
     # index.html
     cat > $INSTALL_DIR/frontend/index.html << 'HTMLEOF'
@@ -481,7 +477,7 @@ create_frontend_files() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WarOps Panel - نصب موفق</title>
+  <title>WarOps Panel - Installation Complete</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
@@ -501,28 +497,28 @@ create_frontend_files() {
   <div class="flex items-center justify-center min-h-screen p-6">
     <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-12 max-w-2xl w-full text-center border border-white/20 shadow-2xl">
       <div class="text-8xl mb-6 animate-bounce">🚀</div>
-      <h1 class="text-5xl font-black text-white mb-4">پنل WarOps نصب شد!</h1>
-      <p class="text-xl text-white/90 mb-8">به پنل مدیریت سرور خوش آمدید</p>
+      <h1 class="text-5xl font-black text-white mb-4">WarOps Panel Installed!</h1>
+      <p class="text-xl text-white/90 mb-8">Welcome to Server Management Panel</p>
       
       <div class="space-y-4 mb-8">
         <a href="/admin.html" class="block bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-5 px-8 rounded-2xl hover:scale-105 transition transform shadow-lg">
-          🔐 ورود به پنل مدیریت
+          🔐 Login to Admin Panel
         </a>
       </div>
       
-      <div class="bg-white/5 rounded-2xl p-6 text-right border border-white/10">
-        <h3 class="text-xl font-bold text-white mb-4 text-center">اطلاعات ورود پیش‌فرض:</h3>
+      <div class="bg-white/5 rounded-2xl p-6 text-center border border-white/10">
+        <h3 class="text-xl font-bold text-white mb-4">Default Login Credentials:</h3>
         <div class="space-y-3 text-white/90">
-          <p class="text-lg">👤 <strong>نام کاربری:</strong> <code class="bg-white/10 px-3 py-1 rounded">admin</code></p>
-          <p class="text-lg">🔑 <strong>رمز عبور:</strong> <code class="bg-white/10 px-3 py-1 rounded">admin123</code></p>
+          <p class="text-lg">👤 <strong>Username:</strong> <code class="bg-white/10 px-3 py-1 rounded">admin</code></p>
+          <p class="text-lg">🔑 <strong>Password:</strong> <code class="bg-white/10 px-3 py-1 rounded">admin123</code></p>
         </div>
         <div class="mt-6 pt-4 border-t border-white/10">
-          <p class="text-sm text-yellow-300 text-center">⚠️ حتماً پس از اولین ورود رمز عبور را تغییر دهید!</p>
+          <p class="text-sm text-yellow-300">⚠️ Change your password after first login!</p>
         </div>
       </div>
       
       <div class="mt-8 text-white/60 text-sm">
-        <p>ساخته شده با ❤️ برای جامعه DevOps ایران</p>
+        <p>Made with ❤️ for DevOps Community</p>
       </div>
     </div>
   </div>
@@ -530,10 +526,10 @@ create_frontend_files() {
 </html>
 HTMLEOF
 
-    # admin.html (simple redirect for now)
+    # admin.html
     cat > $INSTALL_DIR/frontend/admin.html << 'HTMLEOF'
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -558,26 +554,26 @@ HTMLEOF
     <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-12 max-w-md w-full border border-white/20 shadow-2xl">
       <div class="text-center mb-8">
         <div class="text-6xl mb-4">🔐</div>
-        <h2 class="text-3xl font-black text-white mb-2">پنل مدیریت</h2>
-        <p class="text-white/70">WarOps Admin Panel</p>
+        <h2 class="text-3xl font-black text-white mb-2">Admin Panel</h2>
+        <p class="text-white/70">WarOps Management System</p>
       </div>
       
       <form id="loginForm" class="space-y-4">
         <div>
-          <input type="text" id="username" placeholder="نام کاربری" required
+          <input type="text" id="username" placeholder="Username" required
                  class="w-full px-6 py-4 rounded-2xl bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500">
         </div>
         <div>
-          <input type="password" id="password" placeholder="رمز عبور" required
+          <input type="password" id="password" placeholder="Password" required
                  class="w-full px-6 py-4 rounded-2xl bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500">
         </div>
         <button type="submit" class="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-4 px-8 rounded-2xl hover:scale-105 transition transform shadow-lg">
-          ورود
+          Login
         </button>
       </form>
       
       <div class="mt-6 text-center">
-        <a href="/" class="text-white/70 hover:text-white text-sm">← بازگشت به صفحه اصلی</a>
+        <a href="/" class="text-white/70 hover:text-white text-sm">← Back to Home</a>
       </div>
       
       <div id="message" class="mt-4 text-center text-sm"></div>
@@ -603,15 +599,15 @@ HTMLEOF
         if (response.ok && data.token) {
           localStorage.setItem('warops_token', data.token);
           localStorage.setItem('warops_user', data.username);
-          messageEl.innerHTML = '<span class="text-green-300">✓ ورود موفق! در حال انتقال...</span>';
+          messageEl.innerHTML = '<span class="text-green-300">✓ Login successful! Redirecting...</span>';
           setTimeout(() => {
-            messageEl.innerHTML = '<span class="text-white/70">پنل مدیریت کامل به زودی اضافه می‌شود...</span>';
+            messageEl.innerHTML = '<span class="text-white/70">Full admin dashboard coming soon...</span>';
           }, 1500);
         } else {
-          messageEl.innerHTML = '<span class="text-red-300">✗ نام کاربری یا رمز عبور اشتباه است</span>';
+          messageEl.innerHTML = '<span class="text-red-300">✗ Invalid username or password</span>';
         }
       } catch (error) {
-        messageEl.innerHTML = '<span class="text-red-300">✗ خطا در اتصال به سرور</span>';
+        messageEl.innerHTML = '<span class="text-red-300">✗ Connection error</span>';
       }
     });
   </script>
@@ -653,11 +649,11 @@ EOF
 
     systemctl daemon-reload
     
-    print_success "Systemd service created"
+    print_success "Systemd service configured"
 }
 
 setup_firewall() {
-    print_step "Configuring firewall..."
+    print_step "Configuring firewall rules..."
     
     if command -v ufw &> /dev/null; then
         ufw --force enable > /dev/null 2>&1
@@ -666,14 +662,14 @@ setup_firewall() {
         ufw allow 80/tcp > /dev/null 2>&1
         ufw allow 443/tcp > /dev/null 2>&1
         
-        print_success "Firewall configured"
+        print_success "Firewall configured (UFW)"
     else
-        print_warning "UFW not installed, skipping firewall configuration"
+        print_warning "UFW not found - skipping firewall setup"
     fi
 }
 
 start_service() {
-    print_step "Starting service..."
+    print_step "Starting WarOps service..."
     
     if [[ $AUTO_START == true ]]; then
         systemctl enable $SERVICE_NAME > /dev/null 2>&1
@@ -683,7 +679,8 @@ start_service() {
         if systemctl is-active --quiet $SERVICE_NAME; then
             print_success "Service started successfully"
         else
-            print_error "Failed to start service!"
+            print_error "Failed to start service"
+            echo ""
             echo "Check logs with: journalctl -u $SERVICE_NAME -n 50"
             exit 1
         fi
@@ -692,57 +689,69 @@ start_service() {
 
 print_completion() {
     clear
+    echo ""
     echo -e "${GREEN}${BOLD}"
-    echo "=============================================================="
-    echo ""
-    echo "            INSTALLATION COMPLETED SUCCESSFULLY!"
-    echo ""
-    echo "=============================================================="
+    cat << "EOF"
+============================================================
+
+     INSTALLATION COMPLETED SUCCESSFULLY!
+     
+============================================================
+EOF
     echo -e "${NC}"
     echo ""
     
     SERVER_IP=$(hostname -I | awk '{print $1}')
+    [[ -z "$SERVER_IP" ]] && SERVER_IP="YOUR_SERVER_IP"
     
     echo -e "${CYAN}${BOLD}Access Information:${NC}"
     echo ""
-    echo -e "  Panel URL:           ${GREEN}http://$SERVER_IP:$DEFAULT_PORT${NC}"
-    echo -e "  Installation Panel:  ${GREEN}http://$SERVER_IP:$DEFAULT_PORT/${NC}"
-    echo -e "  Admin Panel:         ${GREEN}http://$SERVER_IP:$DEFAULT_PORT/admin.html${NC}"
+    echo -e "  Panel URL:          ${GREEN}http://$SERVER_IP:$DEFAULT_PORT${NC}"
+    echo -e "  Admin Panel:        ${GREEN}http://$SERVER_IP:$DEFAULT_PORT/admin.html${NC}"
     echo ""
-    echo -e "${YELLOW}${BOLD}Default Login Credentials:${NC}"
+    echo -e "${YELLOW}${BOLD}Default Credentials:${NC}"
     echo ""
-    echo -e "  Username:  ${BOLD}admin${NC}"
-    echo -e "  Password:  ${BOLD}admin123${NC}"
+    echo -e "  Username:           ${BOLD}admin${NC}"
+    echo -e "  Password:           ${BOLD}admin123${NC}"
     echo ""
     echo -e "${RED}${BOLD}SECURITY WARNING:${NC}"
-    echo -e "  ${RED}Change the default password immediately after first login!${NC}"
+    echo -e "  ${RED}>> Change default password immediately after first login!${NC}"
     echo ""
     echo -e "${CYAN}${BOLD}Management Commands:${NC}"
     echo ""
-    echo -e "  Service status:      ${YELLOW}systemctl status $SERVICE_NAME${NC}"
-    echo -e "  Restart service:     ${YELLOW}systemctl restart $SERVICE_NAME${NC}"
-    echo -e "  Stop service:        ${YELLOW}systemctl stop $SERVICE_NAME${NC}"
-    echo -e "  View logs:           ${YELLOW}journalctl -u $SERVICE_NAME -f${NC}"
+    echo -e "  Status:             ${YELLOW}systemctl status $SERVICE_NAME${NC}"
+    echo -e "  Restart:            ${YELLOW}systemctl restart $SERVICE_NAME${NC}"
+    echo -e "  Stop:               ${YELLOW}systemctl stop $SERVICE_NAME${NC}"
+    echo -e "  View Logs:          ${YELLOW}journalctl -u $SERVICE_NAME -f${NC}"
+    echo -e "  Error Logs:         ${YELLOW}tail -f $INSTALL_DIR/logs/error.log${NC}"
     echo ""
-    echo -e "${CYAN}${BOLD}Installation Directory:${NC}"
+    echo -e "${CYAN}${BOLD}Installation Path:${NC}"
     echo -e "  $INSTALL_DIR"
     echo ""
-    echo -e "${GREEN}${BOLD}Enjoy using WarOps Panel!${NC}"
+    echo -e "${GREEN}${BOLD}Thank you for using WarOps Panel!${NC}"
+    echo ""
+    echo "============================================================"
     echo ""
 }
 
 ###############################################################################
-# Main execution
+# Main Installation Flow
 ###############################################################################
 
 main() {
     print_banner
+    
+    print_info "WarOps Panel Quick Installer"
+    print_info "This will install the complete server management panel"
+    echo ""
     
     check_root
     check_os
     check_resources
     check_port
     
+    echo ""
+    echo -e "${YELLOW}${BOLD}Ready to install WarOps Panel${NC}"
     echo ""
     read -p "Continue with installation? (y/n): " confirm
     if [[ $confirm != "y" && $confirm != "Y" ]]; then
@@ -751,7 +760,7 @@ main() {
     fi
     
     echo ""
-    echo -e "${CYAN}${BOLD}Starting installation...${NC}"
+    echo -e "${CYAN}${BOLD}Starting installation process...${NC}"
     echo ""
     
     install_dependencies
@@ -764,9 +773,8 @@ main() {
     setup_firewall
     start_service
     
-    echo ""
     print_completion
 }
 
-# Run the installer
-main
+# Execute installer
+main "$@"
