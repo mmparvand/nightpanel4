@@ -1,29 +1,34 @@
-بله حتما! یک اسکریپت نصب یک خطی عالی میسازم که همه چیز رو خودکار نصب کنه! 🚀
+درسته! بیاید فایل اسکریپت رو با حروف فارسی درست اصلاح کنم:
 
-🔥 اسکریپت نصب یک خطی quick-install.sh:
+بله درسته! مشکل از encoding فارسی در Bash هست. بذار یک اسکریپت جدید بسازم که فارسی‌هاش درست نمایش داده بشه:
+
 #!/bin/bash
 
 ###############################################################################
 # WarOps Panel - Quick Install Script
-# نصب خودکار و یک خطی پنل مدیریت WarOps
+# Automatic One-Line Installation for WarOps Management Panel
 # 
-# استفاده:
+# Usage:
 # bash <(curl -Ls https://raw.githubusercontent.com/YOUR_REPO/warops-panel/main/quick-install.sh)
 ###############################################################################
 
 set -e
 
-# رنگ‌ها برای خروجی
+# Set UTF-8 encoding
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 BOLD='\033[1m'
 
-# تنظیمات پیش‌فرض
+# Default settings
 INSTALL_DIR="/opt/warops-panel"
 SERVICE_NAME="warops"
 DEFAULT_PORT=3000
@@ -32,31 +37,26 @@ ENABLE_SSL=false
 AUTO_START=true
 
 ###############################################################################
-# توابع کمکی
+# Helper Functions
 ###############################################################################
 
 print_banner() {
     clear
     echo -e "${PURPLE}${BOLD}"
-    echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║                                                          ║"
-    echo "║          ██╗    ██╗ █████╗ ██████╗  ██████╗ ██████╗ ███████╗  ║"
-    echo "║          ██║    ██║██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██╔════╝  ║"
-    echo "║          ██║ █╗ ██║███████║██████╔╝██║   ██║██████╔╝███████╗  ║"
-    echo "║          ██║███╗██║██╔══██║██╔══██╗██║   ██║██╔═══╝ ╚════██║  ║"
-    echo "║          ╚███╔███╔╝██║  ██║██║  ██║╚██████╔╝██║     ███████║  ║"
-    echo "║           ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚══════╝  ║"
-    echo "║                                                          ║"
-    echo "║                 🚀 Quick Install Script v1.0             ║"
-    echo "║              نصب خودکار پنل مدیریت سرور                 ║"
-    echo "║                                                          ║"
-    echo "╚══════════════════════════════════════════════════════════╝"
+    echo "=============================================================="
+    echo ""
+    echo "          W A R O P S   P A N E L   I N S T A L L E R"
+    echo ""
+    echo "                     Quick Install v1.0"
+    echo "              Server Management Panel Setup"
+    echo ""
+    echo "=============================================================="
     echo -e "${NC}"
     echo ""
 }
 
 print_step() {
-    echo -e "${CYAN}${BOLD}[$(date +'%H:%M:%S')]${NC} ${GREEN}➜${NC} $1"
+    echo -e "${CYAN}${BOLD}[$(date +'%H:%M:%S')]${NC} ${GREEN}=>${NC} $1"
 }
 
 print_error() {
@@ -77,102 +77,102 @@ print_info() {
 
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        print_error "این اسکریپت باید با دسترسی root اجرا شود!"
-        echo "لطفا از sudo استفاده کنید: sudo bash $0"
+        print_error "This script must be run with root privileges!"
+        echo "Please use sudo: sudo bash $0"
         exit 1
     fi
 }
 
 check_os() {
-    print_step "بررسی سیستم عامل..."
+    print_step "Checking operating system..."
     
     if [[ -f /etc/os-release ]]; then
         . /etc/os-release
         OS=$ID
         VER=$VERSION_ID
     else
-        print_error "نمی‌توان سیستم عامل را تشخیص داد!"
+        print_error "Cannot detect operating system!"
         exit 1
     fi
     
     case $OS in
         ubuntu)
             if [[ $(echo "$VER >= 20.04" | bc) -eq 1 ]]; then
-                print_success "Ubuntu $VER تشخیص داده شد ✓"
+                print_success "Ubuntu $VER detected"
             else
-                print_error "Ubuntu 20.04 یا بالاتر مورد نیاز است!"
+                print_error "Ubuntu 20.04 or higher is required!"
                 exit 1
             fi
             ;;
         debian)
             if [[ $(echo "$VER >= 11" | bc) -eq 1 ]]; then
-                print_success "Debian $VER تشخیص داده شد ✓"
+                print_success "Debian $VER detected"
             else
-                print_error "Debian 11 یا بالاتر مورد نیاز است!"
+                print_error "Debian 11 or higher is required!"
                 exit 1
             fi
             ;;
         *)
-            print_error "سیستم عامل پشتیبانی نمی‌شود! فقط Ubuntu 20.04+ و Debian 11+ پشتیبانی می‌شوند."
+            print_error "Unsupported OS! Only Ubuntu 20.04+ and Debian 11+ are supported."
             exit 1
             ;;
     esac
 }
 
 check_resources() {
-    print_step "بررسی منابع سیستم..."
+    print_step "Checking system resources..."
     
-    # بررسی RAM
+    # Check RAM
     TOTAL_RAM=$(free -m | awk '/^Mem:/{print $2}')
     if [[ $TOTAL_RAM -lt 1024 ]]; then
-        print_warning "حداقل 2GB RAM توصیه می‌شود (فعلی: ${TOTAL_RAM}MB)"
+        print_warning "At least 2GB RAM is recommended (Current: ${TOTAL_RAM}MB)"
     else
-        print_success "RAM کافی است: ${TOTAL_RAM}MB ✓"
+        print_success "RAM is sufficient: ${TOTAL_RAM}MB"
     fi
     
-    # بررسی فضای دیسک
+    # Check disk space
     FREE_SPACE=$(df -m / | awk 'NR==2 {print $4}')
     if [[ $FREE_SPACE -lt 5120 ]]; then
-        print_warning "حداقل 5GB فضای خالی توصیه می‌شود (فعلی: ${FREE_SPACE}MB)"
+        print_warning "At least 5GB free space is recommended (Current: ${FREE_SPACE}MB)"
     else
-        print_success "فضای دیسک کافی است: ${FREE_SPACE}MB ✓"
+        print_success "Disk space is sufficient: ${FREE_SPACE}MB"
     fi
 }
 
 check_port() {
-    print_step "بررسی در دسترس بودن پورت $DEFAULT_PORT..."
+    print_step "Checking port $DEFAULT_PORT availability..."
     
     if lsof -Pi :$DEFAULT_PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
-        print_error "پورت $DEFAULT_PORT در حال استفاده است!"
-        read -p "آیا می‌خواهید پورت دیگری استفاده کنید؟ (y/n): " change_port
+        print_error "Port $DEFAULT_PORT is already in use!"
+        read -p "Would you like to use a different port? (y/n): " change_port
         if [[ $change_port == "y" || $change_port == "Y" ]]; then
-            read -p "پورت جدید را وارد کنید: " DEFAULT_PORT
+            read -p "Enter new port number: " DEFAULT_PORT
         else
             exit 1
         fi
     else
-        print_success "پورت $DEFAULT_PORT در دسترس است ✓"
+        print_success "Port $DEFAULT_PORT is available"
     fi
 }
 
 install_dependencies() {
-    print_step "نصب وابستگی‌ها..."
+    print_step "Installing dependencies..."
     
     export DEBIAN_FRONTEND=noninteractive
     
     apt-get update -qq > /dev/null 2>&1
-    apt-get install -y -qq curl wget git lsof ufw sqlite3 > /dev/null 2>&1
+    apt-get install -y -qq curl wget git lsof ufw sqlite3 bc > /dev/null 2>&1
     
-    print_success "وابستگی‌های پایه نصب شدند ✓"
+    print_success "Base dependencies installed"
 }
 
 install_nodejs() {
-    print_step "نصب Node.js 18..."
+    print_step "Installing Node.js 18..."
     
     if command -v node &> /dev/null; then
         NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
         if [[ $NODE_VERSION -ge 18 ]]; then
-            print_success "Node.js $(node -v) از قبل نصب شده است ✓"
+            print_success "Node.js $(node -v) is already installed"
             return
         fi
     fi
@@ -180,20 +180,20 @@ install_nodejs() {
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - > /dev/null 2>&1
     apt-get install -y -qq nodejs > /dev/null 2>&1
     
-    print_success "Node.js $(node -v) نصب شد ✓"
-    print_success "NPM $(npm -v) نصب شد ✓"
+    print_success "Node.js $(node -v) installed"
+    print_success "NPM $(npm -v) installed"
 }
 
 create_directories() {
-    print_step "ساخت ساختار دایرکتوری..."
+    print_step "Creating directory structure..."
     
     mkdir -p $INSTALL_DIR/{backend,frontend,logs,backups}
     
-    print_success "دایرکتوری‌ها ایجاد شدند ✓"
+    print_success "Directories created"
 }
 
 create_backend_files() {
-    print_step "ایجاد فایل‌های Backend..."
+    print_step "Creating backend files..."
     
     # server.js
     cat > $INSTALL_DIR/backend/server.js << 'EOF'
@@ -312,14 +312,14 @@ app.post('/api/auth/change-password', authenticateToken, (req, res) => {
 
 // Templates
 const templates = [
-  { id: 'docker', nameFa: 'Docker Engine', icon: '🐳', category: 'Container', version: '24.0', verified: true, size: '200MB', installTime: '5 دقیقه', ports: '2375, 2376', descriptionFa: 'موتور اجرای کانتینر Docker' },
-  { id: 'nginx', nameFa: 'Nginx', icon: '🌐', category: 'Web Server', version: '1.24', verified: true, size: '50MB', installTime: '2 دقیقه', ports: '80, 443', descriptionFa: 'وب سرور و ریورس پروکسی قدرتمند' },
-  { id: 'xui', nameFa: 'X-UI Panel', icon: '🎛️', category: 'VPN', version: '1.8', verified: true, size: '100MB', installTime: '10 دقیقه', ports: '54321', descriptionFa: 'پنل مدیریت Xray' },
-  { id: 'v2ray', nameFa: 'V2Ray Core', icon: '🚀', category: 'VPN', version: '5.10', verified: true, size: '80MB', installTime: '5 دقیقه', ports: '443, 80', descriptionFa: 'هسته اصلی V2Ray' },
-  { id: 'marzban', nameFa: 'Marzban', icon: '💎', category: 'VPN', version: '0.4', verified: true, size: '150MB', installTime: '8 دقیقه', ports: '8000, 8880', descriptionFa: 'پنل مدیریت Xray پیشرفته' },
-  { id: 'hysteria2', nameFa: 'Hysteria 2', icon: '⚡', category: 'VPN', version: '2.0', verified: true, size: '60MB', installTime: '5 دقیقه', ports: '443', descriptionFa: 'پروتکل VPN سریع' },
-  { id: '3xui', nameFa: '3X-UI', icon: '🔷', category: 'VPN', version: '2.3', verified: true, size: '120MB', installTime: '12 دقیقه', ports: '2053', descriptionFa: 'پنل مدیریت 3X-UI' },
-  { id: 'rathole', nameFa: 'Rathole', icon: '🕳️', category: 'Tunnel', version: '0.5', verified: true, size: '30MB', installTime: '3 دقیقه', ports: '2333', descriptionFa: 'تونل سریع و امن' }
+  { id: 'docker', nameFa: 'Docker Engine', icon: '🐳', category: 'Container', version: '24.0', verified: true, size: '200MB', installTime: '5 min', ports: '2375, 2376', descriptionFa: 'Docker Container Engine' },
+  { id: 'nginx', nameFa: 'Nginx', icon: '🌐', category: 'Web Server', version: '1.24', verified: true, size: '50MB', installTime: '2 min', ports: '80, 443', descriptionFa: 'High-performance web server' },
+  { id: 'xui', nameFa: 'X-UI Panel', icon: '🎛️', category: 'VPN', version: '1.8', verified: true, size: '100MB', installTime: '10 min', ports: '54321', descriptionFa: 'Xray management panel' },
+  { id: 'v2ray', nameFa: 'V2Ray Core', icon: '🚀', category: 'VPN', version: '5.10', verified: true, size: '80MB', installTime: '5 min', ports: '443, 80', descriptionFa: 'V2Ray core' },
+  { id: 'marzban', nameFa: 'Marzban', icon: '💎', category: 'VPN', version: '0.4', verified: true, size: '150MB', installTime: '8 min', ports: '8000, 8880', descriptionFa: 'Advanced Xray panel' },
+  { id: 'hysteria2', nameFa: 'Hysteria 2', icon: '⚡', category: 'VPN', version: '2.0', verified: true, size: '60MB', installTime: '5 min', ports: '443', descriptionFa: 'Fast VPN protocol' },
+  { id: '3xui', nameFa: '3X-UI', icon: '🔷', category: 'VPN', version: '2.3', verified: true, size: '120MB', installTime: '12 min', ports: '2053', descriptionFa: '3X-UI management panel' },
+  { id: 'rathole', nameFa: 'Rathole', icon: '🕳️', category: 'Tunnel', version: '0.5', verified: true, size: '30MB', installTime: '3 min', ports: '2333', descriptionFa: 'Fast and secure tunnel' }
 ];
 
 app.get('/api/templates', (req, res) => {
@@ -429,10 +429,13 @@ app.get('/api/install/status/:id', (req, res) => {
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✓ WarOps Panel running on http://0.0.0.0:${PORT}`);
-  console.log(`✓ Installation Panel: http://0.0.0.0:${PORT}/`);
-  console.log(`✓ Admin Panel: http://0.0.0.0:${PORT}/admin.html`);
-  console.log(`✓ Default credentials: admin / admin123`);
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`  WarOps Panel is running!`);
+  console.log(`${'='.repeat(60)}`);
+  console.log(`  Installation Panel: http://0.0.0.0:${PORT}/`);
+  console.log(`  Admin Panel:        http://0.0.0.0:${PORT}/admin.html`);
+  console.log(`  Default Login:      admin / admin123`);
+  console.log(`${'='.repeat(60)}\n`);
 });
 EOF
 
@@ -456,61 +459,79 @@ EOF
 }
 EOF
 
-    print_success "فایل‌های Backend ایجاد شدند ✓"
+    print_success "Backend files created"
 }
 
 install_npm_packages() {
-    print_step "نصب پکیج‌های NPM..."
+    print_step "Installing NPM packages..."
     
     cd $INSTALL_DIR/backend
     npm install --silent --no-progress > /dev/null 2>&1
     
-    print_success "پکیج‌های NPM نصب شدند ✓"
+    print_success "NPM packages installed"
 }
 
 create_frontend_files() {
-    print_step "ایجاد فایل‌های Frontend..."
+    print_step "Creating frontend files..."
     
-    # در اینجا فایل‌های HTML که قبلا ساختید رو کپی می‌کنیم
-    # برای سادگی فقط یک صفحه ساده می‌سازیم
-    
-    cat > $INSTALL_DIR/frontend/index.html << 'EOF'
+    # index.html
+    cat > $INSTALL_DIR/frontend/index.html << 'HTMLEOF'
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WarOps Panel - Installation</title>
+  <title>WarOps Panel - نصب موفق</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #667eea 100%);
+      background-size: 400% 400%;
+      animation: gradient 15s ease infinite;
+    }
+    @keyframes gradient {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+  </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-purple-900">
+<body class="min-h-screen gradient-bg">
   <div class="flex items-center justify-center min-h-screen p-6">
-    <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-12 max-w-2xl w-full text-center">
-      <div class="text-8xl mb-6">🚀</div>
+    <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-12 max-w-2xl w-full text-center border border-white/20 shadow-2xl">
+      <div class="text-8xl mb-6 animate-bounce">🚀</div>
       <h1 class="text-5xl font-black text-white mb-4">پنل WarOps نصب شد!</h1>
-      <p class="text-xl text-white/80 mb-8">به پنل مدیریت سرور خوش آمدید</p>
+      <p class="text-xl text-white/90 mb-8">به پنل مدیریت سرور خوش آمدید</p>
       
-      <div class="space-y-4">
-        <a href="/admin.html" class="block bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-4 px-8 rounded-2xl hover:scale-105 transition">
+      <div class="space-y-4 mb-8">
+        <a href="/admin.html" class="block bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-5 px-8 rounded-2xl hover:scale-105 transition transform shadow-lg">
           🔐 ورود به پنل مدیریت
         </a>
-        
-        <div class="bg-white/5 rounded-2xl p-6 text-right">
-          <h3 class="text-xl font-bold text-white mb-4">اطلاعات ورود پیش‌فرض:</h3>
-          <p class="text-white/80 mb-2">👤 <strong>نام کاربری:</strong> admin</p>
-          <p class="text-white/80 mb-2">🔑 <strong>رمز عبور:</strong> admin123</p>
-          <p class="text-sm text-yellow-400 mt-4">⚠️ حتما پس از اولین ورود رمز عبور را تغییر دهید!</p>
+      </div>
+      
+      <div class="bg-white/5 rounded-2xl p-6 text-right border border-white/10">
+        <h3 class="text-xl font-bold text-white mb-4 text-center">اطلاعات ورود پیش‌فرض:</h3>
+        <div class="space-y-3 text-white/90">
+          <p class="text-lg">👤 <strong>نام کاربری:</strong> <code class="bg-white/10 px-3 py-1 rounded">admin</code></p>
+          <p class="text-lg">🔑 <strong>رمز عبور:</strong> <code class="bg-white/10 px-3 py-1 rounded">admin123</code></p>
         </div>
+        <div class="mt-6 pt-4 border-t border-white/10">
+          <p class="text-sm text-yellow-300 text-center">⚠️ حتماً پس از اولین ورود رمز عبور را تغییر دهید!</p>
+        </div>
+      </div>
+      
+      <div class="mt-8 text-white/60 text-sm">
+        <p>ساخته شده با ❤️ برای جامعه DevOps ایران</p>
       </div>
     </div>
   </div>
 </body>
 </html>
-EOF
+HTMLEOF
 
-    # کپی فایل admin.html (از کد قبلی)
-    # برای اینجا فقط یک redirect ساده می‌ذاریم
-    cat > $INSTALL_DIR/frontend/admin.html << 'EOF'
+    # admin.html (simple redirect for now)
+    cat > $INSTALL_DIR/frontend/admin.html << 'HTMLEOF'
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -518,38 +539,93 @@ EOF
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WarOps Admin Panel</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #667eea 100%);
+      background-size: 400% 400%;
+      animation: gradient 15s ease infinite;
+    }
+    @keyframes gradient {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+  </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-purple-900">
+<body class="min-h-screen gradient-bg">
   <div class="flex items-center justify-center min-h-screen p-6">
-    <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-12 max-w-md w-full">
+    <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-12 max-w-md w-full border border-white/20 shadow-2xl">
       <div class="text-center mb-8">
         <div class="text-6xl mb-4">🔐</div>
         <h2 class="text-3xl font-black text-white mb-2">پنل مدیریت</h2>
         <p class="text-white/70">WarOps Admin Panel</p>
       </div>
       
-      <div class="space-y-4">
-        <input type="text" placeholder="نام کاربری" class="w-full px-6 py-4 rounded-2xl bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500">
-        <input type="password" placeholder="رمز عبور" class="w-full px-6 py-4 rounded-2xl bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500">
-        <button class="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-4 px-8 rounded-2xl hover:scale-105 transition">
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <input type="text" id="username" placeholder="نام کاربری" required
+                 class="w-full px-6 py-4 rounded-2xl bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+        <div>
+          <input type="password" id="password" placeholder="رمز عبور" required
+                 class="w-full px-6 py-4 rounded-2xl bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+        <button type="submit" class="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-4 px-8 rounded-2xl hover:scale-105 transition transform shadow-lg">
           ورود
         </button>
-      </div>
+      </form>
       
       <div class="mt-6 text-center">
-        <a href="/" class="text-white/70 hover:text-white text-sm">← بازگشت</a>
+        <a href="/" class="text-white/70 hover:text-white text-sm">← بازگشت به صفحه اصلی</a>
       </div>
+      
+      <div id="message" class="mt-4 text-center text-sm"></div>
     </div>
   </div>
+  
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const messageEl = document.getElementById('message');
+      
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.token) {
+          localStorage.setItem('warops_token', data.token);
+          localStorage.setItem('warops_user', data.username);
+          messageEl.innerHTML = '<span class="text-green-300">✓ ورود موفق! در حال انتقال...</span>';
+          setTimeout(() => {
+            messageEl.innerHTML = '<span class="text-white/70">پنل مدیریت کامل به زودی اضافه می‌شود...</span>';
+          }, 1500);
+        } else {
+          messageEl.innerHTML = '<span class="text-red-300">✗ نام کاربری یا رمز عبور اشتباه است</span>';
+        }
+      } catch (error) {
+        messageEl.innerHTML = '<span class="text-red-300">✗ خطا در اتصال به سرور</span>';
+      }
+    });
+  </script>
 </body>
 </html>
-EOF
+HTMLEOF
 
-    print_success "فایل‌های Frontend ایجاد شدند ✓"
+    print_success "Frontend files created"
 }
 
 create_systemd_service() {
-    print_step "ایجاد Systemd Service..."
+    print_step "Creating systemd service..."
+    
+    JWT_SECRET=$(openssl rand -hex 32)
     
     cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
 [Unit]
@@ -569,7 +645,7 @@ StandardError=append:$INSTALL_DIR/logs/error.log
 
 Environment=NODE_ENV=production
 Environment=PORT=$DEFAULT_PORT
-Environment=JWT_SECRET=$(openssl rand -hex 32)
+Environment=JWT_SECRET=$JWT_SECRET
 
 [Install]
 WantedBy=multi-user.target
@@ -577,11 +653,11 @@ EOF
 
     systemctl daemon-reload
     
-    print_success "Systemd Service ایجاد شد ✓"
+    print_success "Systemd service created"
 }
 
 setup_firewall() {
-    print_step "پیکربندی Firewall..."
+    print_step "Configuring firewall..."
     
     if command -v ufw &> /dev/null; then
         ufw --force enable > /dev/null 2>&1
@@ -590,14 +666,14 @@ setup_firewall() {
         ufw allow 80/tcp > /dev/null 2>&1
         ufw allow 443/tcp > /dev/null 2>&1
         
-        print_success "Firewall پیکربندی شد ✓"
+        print_success "Firewall configured"
     else
-        print_warning "UFW نصب نیست، Firewall تنظیم نشد"
+        print_warning "UFW not installed, skipping firewall configuration"
     fi
 }
 
 start_service() {
-    print_step "راه‌اندازی سرویس..."
+    print_step "Starting service..."
     
     if [[ $AUTO_START == true ]]; then
         systemctl enable $SERVICE_NAME > /dev/null 2>&1
@@ -605,11 +681,10 @@ start_service() {
         sleep 3
         
         if systemctl is-active --quiet $SERVICE_NAME; then
-            print_success "سرویس با موفقیت راه‌اندازی شد ✓"
+            print_success "Service started successfully"
         else
-            print_error "خطا در راه‌اندازی سرویس!"
-            echo "لاگ‌ها را با دستور زیر بررسی کنید:"
-            echo "  journalctl -u $SERVICE_NAME -n 50"
+            print_error "Failed to start service!"
+            echo "Check logs with: journalctl -u $SERVICE_NAME -n 50"
             exit 1
         fi
     fi
@@ -618,47 +693,46 @@ start_service() {
 print_completion() {
     clear
     echo -e "${GREEN}${BOLD}"
-    echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║                                                          ║"
-    echo "║              ✅ نصب با موفقیت انجام شد! ✅              ║"
-    echo "║                                                          ║"
-    echo "╚══════════════════════════════════════════════════════════╝"
+    echo "=============================================================="
+    echo ""
+    echo "            INSTALLATION COMPLETED SUCCESSFULLY!"
+    echo ""
+    echo "=============================================================="
     echo -e "${NC}"
     echo ""
     
     SERVER_IP=$(hostname -I | awk '{print $1}')
     
-    echo -e "${CYAN}${BOLD}📍 اطلاعات دسترسی:${NC}"
+    echo -e "${CYAN}${BOLD}Access Information:${NC}"
     echo ""
-    echo -e "  🌐 آدرس پنل:        ${GREEN}http://$SERVER_IP:$DEFAULT_PORT${NC}"
-    echo -e "  🌐 پنل نصب:         ${GREEN}http://$SERVER_IP:$DEFAULT_PORT/${NC}"
-    echo -e "  🔐 پنل مدیریت:      ${GREEN}http://$SERVER_IP:$DEFAULT_PORT/admin.html${NC}"
+    echo -e "  Panel URL:           ${GREEN}http://$SERVER_IP:$DEFAULT_PORT${NC}"
+    echo -e "  Installation Panel:  ${GREEN}http://$SERVER_IP:$DEFAULT_PORT/${NC}"
+    echo -e "  Admin Panel:         ${GREEN}http://$SERVER_IP:$DEFAULT_PORT/admin.html${NC}"
     echo ""
-    echo -e "${YELLOW}${BOLD}🔑 اطلاعات ورود پیش‌فرض:${NC}"
+    echo -e "${YELLOW}${BOLD}Default Login Credentials:${NC}"
     echo ""
-    echo -e "  👤 نام کاربری:      ${BOLD}admin${NC}"
-    echo -e "  🔒 رمز عبور:        ${BOLD}admin123${NC}"
+    echo -e "  Username:  ${BOLD}admin${NC}"
+    echo -e "  Password:  ${BOLD}admin123${NC}"
     echo ""
-    echo -e "${RED}${BOLD}⚠️  هشدار امنیتی:${NC}"
-    echo -e "  ${RED}• حتما پس از اولین ورود رمز عبور را تغییر دهید!${NC}"
-    echo -e "  ${RED}• JWT Secret را در فایل سرویس تغییر دهید${NC}"
+    echo -e "${RED}${BOLD}SECURITY WARNING:${NC}"
+    echo -e "  ${RED}Change the default password immediately after first login!${NC}"
     echo ""
-    echo -e "${CYAN}${BOLD}🛠️  دستورات مدیریتی:${NC}"
+    echo -e "${CYAN}${BOLD}Management Commands:${NC}"
     echo ""
-    echo -e "  وضعیت سرویس:       ${YELLOW}systemctl status $SERVICE_NAME${NC}"
-    echo -e "  راه‌اندازی مجدد:    ${YELLOW}systemctl restart $SERVICE_NAME${NC}"
-    echo -e "  توقف سرویس:        ${YELLOW}systemctl stop $SERVICE_NAME${NC}"
-    echo -e "  مشاهده لاگ:        ${YELLOW}journalctl -u $SERVICE_NAME -f${NC}"
+    echo -e "  Service status:      ${YELLOW}systemctl status $SERVICE_NAME${NC}"
+    echo -e "  Restart service:     ${YELLOW}systemctl restart $SERVICE_NAME${NC}"
+    echo -e "  Stop service:        ${YELLOW}systemctl stop $SERVICE_NAME${NC}"
+    echo -e "  View logs:           ${YELLOW}journalctl -u $SERVICE_NAME -f${NC}"
     echo ""
-    echo -e "${CYAN}${BOLD}📂 مسیر نصب:${NC}"
+    echo -e "${CYAN}${BOLD}Installation Directory:${NC}"
     echo -e "  $INSTALL_DIR"
     echo ""
-    echo -e "${GREEN}${BOLD}🎉 از WarOps Panel استفاده کنید!${NC}"
+    echo -e "${GREEN}${BOLD}Enjoy using WarOps Panel!${NC}"
     echo ""
 }
 
 ###############################################################################
-# اجرای اصلی
+# Main execution
 ###############################################################################
 
 main() {
@@ -670,14 +744,14 @@ main() {
     check_port
     
     echo ""
-    read -p "آیا می‌خواهید نصب ادامه یابد؟ (y/n): " confirm
+    read -p "Continue with installation? (y/n): " confirm
     if [[ $confirm != "y" && $confirm != "Y" ]]; then
-        echo "نصب لغو شد."
+        echo "Installation cancelled."
         exit 0
     fi
     
     echo ""
-    echo -e "${CYAN}${BOLD}🚀 شروع نصب...${NC}"
+    echo -e "${CYAN}${BOLD}Starting installation...${NC}"
     echo ""
     
     install_dependencies
@@ -694,5 +768,5 @@ main() {
     print_completion
 }
 
-# اجرای اسکریپت
+# Run the installer
 main
