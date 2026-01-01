@@ -20,7 +20,7 @@ BOLD='\033[1m'
 # Settings
 INSTALL_DIR="/opt/warops-panel"
 SERVICE_NAME="warops"
-DEFAULT_PORT=3030
+DEFAULT_PORT=4000
 AUTO_START=true
 
 ###############################################################################
@@ -172,7 +172,7 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3030;
+const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-in-production';
 
 app.use(cors());
